@@ -18,19 +18,20 @@ parentDir = fileparts(fileparts(currentPath));
 addpath(genpath(parentDir));
 
 %% 必要参数
-filefolder = 'D:\software_matlab\exampledata\colordoppler\20250809H\20250809144618';  % 数据所在文件夹
-% filefolder = 'D:\software_matlab\exampledata\colordoppler\20250809Z\20250809144808';
+filefolder = 'D:\software_matlab\exampledata\doppler\20251020190356';  % 数据所在文件夹
 
 % 
-[fs,fc,BF_SampleN,ImageDepth,~,cstartoffset,frame_nums,numperfile,prf,steering_deg] = read_adc_para_pw(strcat(filefolder,'\Param.txt'),'plane_wave');
+[fs,prf,sampleNum,scanLine,imagedepth,focus_depth,cstartoffset,frame_nums,numperfile,steering_deg,scaninfo] = read_adc_para(strcat(filefolder,'\Param.txt'),'plane wave');
+fc=7.5e6; %发射频率
+BF_SampleN = sampleNum;
 
                             % fs               采样率
-                            % BF_SampleN       采样点数
+                            % sampleNum       采样点数
                             % numperfile       保存的数据每一包所含帧数
                             % steering_deg     平面波发射角度
                             % ImageDepth       图像深度
                             % prf              采集数据所用的脉冲重复频率 
-                            % fc               发射频率
+
 
 load_file_num = 10;         % 读取并处理的文件数量
 
