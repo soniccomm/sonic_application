@@ -14,25 +14,22 @@ parentDir = fileparts(fileparts(currentPath));
 addpath(genpath(parentDir));
 
 %% 必要参数
-filefolder = 'D:\software_matlab\exampledata\TestData\20250730105523';  % 数据所在文件夹
+filefolder = 'D:\software_matlab\exampledata\doppler\20251020190426';  % 数据所在文件夹
 
-%新版记录参数的文件读取改为read_adc_para_pw
-% [fs,fc,BF_SampleN,ImageDepth,focus_depth,cstartoffset,...
-%     frame_nums,numperfile,prf,steering_deg] = read_adc_para_pw(strcat(filefolder,'\Param.txt'),'plane_wave');
-
-%旧版记录参数的文件读取
-[fs,BF_SampleN,ImageDepth,~,cstartoffset,frame_nums,numperfile,steering_deg,prf,fc] = read_adc_para_sd(strcat(filefolder,'\Param.txt'),'plane_wave');
-
+% 
+[fs,prf,sampleNum,scanLine,imagedepth,focus_depth,cstartoffset,frame_nums,numperfile,steering_deg,scaninfo] = read_adc_para(strcat(filefolder,'\Param.txt'),'plane wave');
+fc=7.5e6; %发射频率
+BF_SampleN = sampleNum;
 
                             % fs               采样率
-                            % BF_SampleN       采样点数
+                            % sampleNum       采样点数
                             % numperfile       保存的数据每一包所含帧数
                             % steering_deg     平面波发射角度
                             % ImageDepth       图像深度
                             % prf              采集数据所用的脉冲重复频率 
-                            % fc               发射频率
 
-load_file_num = 10;         % 读取并处理的文件数量
+
+load_file_num = 40;         % 读取并处理的文件数量
 
 Imagestart = 0.002;         % B模式图像起始深度
 ImageDepth = 0.040;         % B模式图像深度
