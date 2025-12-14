@@ -1,3 +1,6 @@
+% author:seu
+% data:2025-07-30
+
 % 此为频谱多普勒第二步，第一步为采集数据（单角度）
 
 % 数据处理流程：
@@ -64,9 +67,7 @@ sos = 1540;                 % 声速
 %% 波束合成参数计算
 
 probe = Probe_para(probe_name);
-
-% 通道对应关系（不用改）
-ch_map =[82 ,114 ,86 ,118 ,90 ,122 ,94 ,126 ,80 ,112 ,84 ,116 ,88 ,120 ,92 ,124 ,83 ,115 ,87 ,119 ,91 ,123 ,95 ,127 ,81 ,113 ,85 ,117 ,89 ,121 ,93 ,125 ,34 ,98 ,38 ,102 ,42 ,106 ,46 ,110 ,32 ,96 ,36 ,100 ,40 ,104 ,44 ,108 ,35 ,99 ,39 ,103 ,43 ,107 ,47 ,111 ,33 ,97 ,37 ,101 ,41 ,105 ,45 ,109 ,18 ,66 ,22 ,70 ,26 ,74 ,30 ,78 ,16 ,64 ,20 ,68 ,24 ,72 ,28 ,76 ,19 ,67 ,23 ,71 ,27 ,75 ,31 ,79 ,17 ,65 ,21 ,69 ,25 ,73 ,29 ,77 ,2 ,50 ,6 ,54 ,10 ,58 ,14 ,62 ,0 ,48 ,4 ,52 ,8 ,56 ,12 ,60 ,3 ,51 ,7 ,55 ,11 ,59 ,15 ,63 ,1 ,49 ,5 ,53 ,9 ,57 ,13 ,61 ];
+ch_map = probe.rx_ele_map(1:RxChannel);
 elex = probe.element_pos.x;
 elez = probe.element_pos.z;
 
@@ -246,7 +247,7 @@ gpu_handle = calllib('US_APP', 'initializespectralGPU', ...
     1, ... %AcqConfig.Tx.FsNum
     TxChannel, ... %AcqConfig.Tx.Channel
     RxChannel, ... %RxChannel
-    128, ... %AcqConfig.Probe.element_num
+    probe.element_num, ... %AcqConfig.Probe.element_num
     probe.element_pitch, ... %AcqConfig.Probe.element_pitch
     32, ...
     BF_SampleN, ...
