@@ -1,3 +1,6 @@
+% author:seu
+% data:2025-09-30
+
 % 后续还会优化
 % 此为血流多普勒第二步，第一步为采集数据
 
@@ -39,16 +42,14 @@ Imagestart = 0.002;         % B模式图像起始深度
 ImageDepth = 0.040;         % B模式图像深度
 BeamN = 256;                % 线束（波束合成x方向线束数量）       
 
-t_axis_span = 2;            % 秒 定义循环刷新的图的时间跨度
 fft_period = 50;            % 计算一次血流所用帧数（Window Size）
-lag = 5;                    % 相邻两次血流计算间隔的帧数（Update Interval/Hop Size）
 
 x1_loc_real = -0.00;        % 取样框左上角物理坐标x1
 z1_loc_real = 0.0056;       % 取样框左上角物理坐标z1
 x2_loc_real = 0.0121;       % 取样框右下角物理坐标x2
 z2_loc_real = 0.0194;       % 取样框右下角物理坐标z2
 
-
+svd_auto = 1;               % 是否自动计算SVD滤波参数 若1 svd_ord1和svd_ord2不起作用
 svd_ord1 = 20;              % SVD滤波起始阶数
 svd_ord2 = 45;              % SVD滤波结束阶数
 
@@ -69,9 +70,7 @@ sos = 1540;                 % 声速
 %% 波束合成参数计算
 
 probe = Probe_para(probe_name);
-
-% 通道对应关系（不用改）
-ch_map =[82 ,114 ,86 ,118 ,90 ,122 ,94 ,126 ,80 ,112 ,84 ,116 ,88 ,120 ,92 ,124 ,83 ,115 ,87 ,119 ,91 ,123 ,95 ,127 ,81 ,113 ,85 ,117 ,89 ,121 ,93 ,125 ,34 ,98 ,38 ,102 ,42 ,106 ,46 ,110 ,32 ,96 ,36 ,100 ,40 ,104 ,44 ,108 ,35 ,99 ,39 ,103 ,43 ,107 ,47 ,111 ,33 ,97 ,37 ,101 ,41 ,105 ,45 ,109 ,18 ,66 ,22 ,70 ,26 ,74 ,30 ,78 ,16 ,64 ,20 ,68 ,24 ,72 ,28 ,76 ,19 ,67 ,23 ,71 ,27 ,75 ,31 ,79 ,17 ,65 ,21 ,69 ,25 ,73 ,29 ,77 ,2 ,50 ,6 ,54 ,10 ,58 ,14 ,62 ,0 ,48 ,4 ,52 ,8 ,56 ,12 ,60 ,3 ,51 ,7 ,55 ,11 ,59 ,15 ,63 ,1 ,49 ,5 ,53 ,9 ,57 ,13 ,61 ];
+ch_map = probe.rx_ele_map(1:RxChannel);
 elex = probe.element_pos.x;
 elez = probe.element_pos.z;
 
@@ -218,8 +217,8 @@ gpu_handle = calllib('US_APP', 'initializecolorGPU', ...
     numperfile, ...
     buffer_num, ...
     fft_period, ...
-    lag, ...
-    t_axis_span, ...
+    1, ... % lag
+    2, ... %t_axis_span
     t_idx, ...
     t_buffer_idx, ...
     probe_type_ptr, ...
@@ -227,7 +226,7 @@ gpu_handle = calllib('US_APP', 'initializecolorGPU', ...
     1, ... %AcqConfig.Tx.FsNum
     TxChannel, ... %AcqConfig.Tx.Channel
     RxChannel, ... %RxChannel
-    128, ... %AcqConfig.Probe.element_num
+    probe.element_num, ... %AcqConfig.Probe.element_num
     probe.element_pitch, ... %AcqConfig.Probe.element_pitch
     32, ...
     BF_SampleN, ...
