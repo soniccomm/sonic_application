@@ -5,7 +5,7 @@
 
 clear;clc
 % 将此路径改为第三步保存的数据的路径
-load('D:\software_matlab\exampledata\血流体模\20251129150709_50_2_999\bfiq\bfiq_com.mat')
+load('D:\software_matlab\exampledata\大鼠脑\bfiq\bfiq_com.mat')
 
 [Nz,Nx,Nt] = size(bfiq_com);
 % 参数设置：ord1和ord2
@@ -32,7 +32,7 @@ casorati_mat = IQ_mat;
 clear casorati;
 
 % svd阶数
-ord1 = 20;
+ord1 = 85;
 ord2 = size(IQ_mat,2)-20;
 S_filt = zeros(size(S));
 for i = ord1:ord2
@@ -44,7 +44,7 @@ filtered_mat = U*S_filt*V';
 %% power doppler
 power_doppler = mean(abs(filtered_mat).^2,2);
 power_doppler = reshape(power_doppler,[Nz Nx]);
-figure(2);imagesc(z_axis,x_axis,log_compressed(power_doppler),[-30 0]);
+figure(2);imagesc(z_axis,x_axis,log_compressed(power_doppler),[-50 0]);
 colormap('hot');axis equal;axis tight;colorbar
 
 

@@ -12,7 +12,7 @@ addpath(genpath(parentDir));
 
 %% 波束合成数据路径（该路径已有波束合成数据）
 
-data_filepath = 'D:\software_matlab\exampledata\血流体模\20251129150709_50_2_999\bfiq';
+data_filepath = 'D:\software_matlab\exampledata\大鼠脑\bfiq';
 
 %% 获取数据文件列表
 [load_file_start_idx,min_num,max_num,sorted_files] = getfiles_mat(data_filepath);
@@ -23,7 +23,7 @@ load(fullfile(sorted_files(1).folder, sorted_files(1).name))
 
 %% 读取拼接
 % 需要多少帧计算多普勒
-framenum = 100;
+framenum = 400;
 
 % 计算需要读取多少mat
 need_filenum = 1;
