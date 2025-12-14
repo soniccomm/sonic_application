@@ -1,3 +1,6 @@
+% author:seu
+% data:2025-07-30
+
 % 此为能量多普勒（功率多普勒）第二步，第一步为采集数据
 
 % 数据处理流程：
@@ -14,11 +17,11 @@ parentDir = fileparts(fileparts(currentPath));
 addpath(genpath(parentDir));
 
 %% 必要参数
-filefolder = 'D:\software_matlab\exampledata\doppler\20251020190356';  % 数据所在文件夹
+filefolder = 'D:\software_matlab\exampledata\大鼠脑';  % 数据所在文件夹
 
 % 
 [fs,prf,sampleNum,scanLine,imagedepth,focus_depth,cstartoffset,frame_nums,numperfile,steering_deg,scaninfo] = read_adc_para(strcat(filefolder,'\Param.txt'),'plane wave');
-fc=7.5e6; %发射频率
+fc=15e6; %发射频率
 BF_SampleN = sampleNum;
 
                             % fs               采样率
@@ -28,35 +31,33 @@ BF_SampleN = sampleNum;
                             % ImageDepth       图像深度
                             % prf              采集数据所用的脉冲重复频率 
 
-load_file_num = 10;         % 读取并处理的文件数量
+load_file_num = 20;         % 读取并处理的文件数量
 
 Imagestart = 0.002;         % B模式图像起始深度
-ImageDepth = 0.040;         % B模式图像深度
+ImageDepth = 0.0160;         % B模式图像深度
 BeamN = 256;                % 线束（波束合成x方向线束数量）       
 
-t_axis_span = 2;            % 秒 定义循环刷新的图的时间跨度
-fft_period = 50;            % 计算一次血流所用帧数（Window Size）
-lag = 5;                    % 相邻两次血流计算间隔的帧数（Update Interval/Hop Size）
+fft_period = 60;            % 计算一次血流所用帧数（Window Size）
 
-x1_loc_real = -0.00;        % 取样框左上角物理坐标x1
-z1_loc_real = 0.0056;       % 取样框左上角物理坐标z1
-x2_loc_real = 0.0121;       % 取样框右下角物理坐标x2
-z2_loc_real = 0.0194;       % 取样框右下角物理坐标z2
+x1_loc_real = -0.006;        % 取样框左上角物理坐标x1
+z1_loc_real = 0.003;       % 取样框左上角物理坐标z1
+x2_loc_real = 0.006;       % 取样框右下角物理坐标x2
+z2_loc_real = 0.015;       % 取样框右下角物理坐标z2
 
-svd_auto = 1;               % 是否使用自适应阈值进行svd滤波，若为1，则svd_ord1和svd_ord2不起作用
+svd_auto = 0;               % 是否使用自适应阈值进行svd滤波，若为1，则svd_ord1和svd_ord2不起作用
 svd_ord1 = 20;              % SVD滤波起始阶数
 svd_ord2 = 45;              % SVD滤波结束阶数
 
 is_save_BF = 1;             % 是否保存波束合成后IQ数据 1为保存 0为不保存
-Bmode_save_index = 1:17;       % 每一包数据保存的帧号
-                            % 仅在is_save_BF = 1时生效 例：1表示每一包仅保存第1帧，1:numperfile表示保存第1帧到最后一帧
+Bmode_save_index = 1:1;       % 每一包数据保存的帧号
+                            % 仅在is_save_BF = 1时生效 例：1表示每一包仅保存第1帧，1:numperfile/numel(steering_deg)表示保存第1帧到最后一帧
 is_save_power = 1;          % 是否保存血流数据 1为保存 0为不保存
 
 drange_B = 60;              % bmode动态范围
 drange_power = 30;          % 能量多普勒动态范围
 
 % 默认参数
-probe_name = 'L5-10';       % 探头名称
+probe_name = 'L10-20';       % 探头名称
 TxChannel = 128;            % 发射通道数量
 RxChannel = 128;            % 接收通道数量
 sos = 1540;                 % 声速
@@ -66,9 +67,7 @@ sos = 1540;                 % 声速
 %% 波束合成参数计算
 
 probe = Probe_para(probe_name);
-
-% 通道对应关系（不用改）
-ch_map =[82 ,114 ,86 ,118 ,90 ,122 ,94 ,126 ,80 ,112 ,84 ,116 ,88 ,120 ,92 ,124 ,83 ,115 ,87 ,119 ,91 ,123 ,95 ,127 ,81 ,113 ,85 ,117 ,89 ,121 ,93 ,125 ,34 ,98 ,38 ,102 ,42 ,106 ,46 ,110 ,32 ,96 ,36 ,100 ,40 ,104 ,44 ,108 ,35 ,99 ,39 ,103 ,43 ,107 ,47 ,111 ,33 ,97 ,37 ,101 ,41 ,105 ,45 ,109 ,18 ,66 ,22 ,70 ,26 ,74 ,30 ,78 ,16 ,64 ,20 ,68 ,24 ,72 ,28 ,76 ,19 ,67 ,23 ,71 ,27 ,75 ,31 ,79 ,17 ,65 ,21 ,69 ,25 ,73 ,29 ,77 ,2 ,50 ,6 ,54 ,10 ,58 ,14 ,62 ,0 ,48 ,4 ,52 ,8 ,56 ,12 ,60 ,3 ,51 ,7 ,55 ,11 ,59 ,15 ,63 ,1 ,49 ,5 ,53 ,9 ,57 ,13 ,61 ];
+ch_map = probe.rx_ele_map(1:RxChannel);
 elex = probe.element_pos.x;
 elez = probe.element_pos.z;
 
@@ -215,8 +214,8 @@ gpu_handle = calllib('US_APP', 'initializepowerGPU', ...
     numperfile, ...
     buffer_num, ...
     fft_period, ...
-    lag, ...
-    t_axis_span, ...
+    2, ... %lag
+    2, ... %t_axis_span
     t_idx, ...
     t_buffer_idx, ...
     probe_type_ptr, ...
@@ -224,7 +223,7 @@ gpu_handle = calllib('US_APP', 'initializepowerGPU', ...
     1, ... %AcqConfig.Tx.FsNum
     TxChannel, ... %AcqConfig.Tx.Channel
     RxChannel, ... %RxChannel
-    128, ... %AcqConfig.Probe.element_num
+    probe.element_num, ... %AcqConfig.Probe.element_num
     probe.element_pitch, ... %AcqConfig.Probe.element_pitch
     32, ...
     BF_SampleN, ...
