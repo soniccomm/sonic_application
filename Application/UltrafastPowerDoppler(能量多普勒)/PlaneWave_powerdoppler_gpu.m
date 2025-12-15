@@ -17,11 +17,11 @@ parentDir = fileparts(fileparts(currentPath));
 addpath(genpath(parentDir));
 
 %% 必要参数
-filefolder = 'D:\software_matlab\exampledata\大鼠脑';  % 数据所在文件夹
+filefolder = 'D:\software_matlab\exampledata\doppler\20251020190356';  % 数据所在文件夹
 
 % 
 [fs,prf,sampleNum,scanLine,imagedepth,focus_depth,cstartoffset,frame_nums,numperfile,steering_deg,scaninfo] = read_adc_para(strcat(filefolder,'\Param.txt'),'plane wave');
-fc=15e6; %发射频率
+fc=7.5e6; %发射频率
 BF_SampleN = sampleNum;
 
                             % fs               采样率
@@ -34,19 +34,19 @@ BF_SampleN = sampleNum;
 load_file_num = 20;         % 读取并处理的文件数量
 
 Imagestart = 0.002;         % B模式图像起始深度
-ImageDepth = 0.0160;         % B模式图像深度
+ImageDepth = 0.0360;         % B模式图像深度
 BeamN = 256;                % 线束（波束合成x方向线束数量）       
 
-fft_period = 60;            % 计算一次血流所用帧数（Window Size）
+fft_period = 50;            % 计算一次血流所用帧数（Window Size）
 
 x1_loc_real = -0.006;        % 取样框左上角物理坐标x1
 z1_loc_real = 0.003;       % 取样框左上角物理坐标z1
 x2_loc_real = 0.006;       % 取样框右下角物理坐标x2
 z2_loc_real = 0.015;       % 取样框右下角物理坐标z2
 
-svd_auto = 0;               % 是否使用自适应阈值进行svd滤波，若为1，则svd_ord1和svd_ord2不起作用
-svd_ord1 = 20;              % SVD滤波起始阶数
-svd_ord2 = 45;              % SVD滤波结束阶数
+svd_auto = 1;               % 是否使用自适应阈值进行svd滤波，若为1，则svd_ord1和svd_ord2不起作用
+svd_ord1 = 60;              % SVD滤波起始阶数
+svd_ord2 = 90;              % SVD滤波结束阶数
 
 is_save_BF = 1;             % 是否保存波束合成后IQ数据 1为保存 0为不保存
 Bmode_save_index = 1:1;       % 每一包数据保存的帧号
@@ -57,7 +57,7 @@ drange_B = 60;              % bmode动态范围
 drange_power = 30;          % 能量多普勒动态范围
 
 % 默认参数
-probe_name = 'L10-20';       % 探头名称
+probe_name = 'L5-10';       % 探头名称
 TxChannel = 128;            % 发射通道数量
 RxChannel = 128;            % 接收通道数量
 sos = 1540;                 % 声速
@@ -328,6 +328,9 @@ if is_save_power
     if ~exist(fullfile(filefolder, 'power'), 'dir')
         mkdir(fullfile(filefolder, 'power'));
     end
+    if ~exist(fullfile(filefolder, 'B+power'), 'dir')
+        mkdir(fullfile(filefolder, 'B+power'));
+    end
 end
 
 
@@ -398,6 +401,7 @@ for file_i = 1:load_file_num
 
     if is_save_power
         save(fullfile(filefolder,'power',num2str(bag_idx)+".mat"), 'power_matrix_update');
+        save(fullfile(filefolder,'B+power',num2str(bag_idx)+".mat"), "B_image_rgb","x_axis","zz_cut");
     end
 
     fclose(fileID);
