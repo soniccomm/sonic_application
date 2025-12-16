@@ -5,7 +5,7 @@
 
 clear;clc
 % 将此路径改为第三步保存的数据的路径
-load('D:\software_matlab\exampledata\大鼠脑\bfiq\bfiq_com.mat')
+load('D:\software_matlab\exampledata\doppler\20251020190356\bfiq\bfiq_com.mat')
 
 [Nz,Nx,Nt] = size(bfiq_com);
 % 参数设置：ord1和ord2
@@ -17,7 +17,7 @@ figure(1);
 for i = 1:size(bfiq_com,3)
     img_envelope = abs(bfiq_com(:,:,i));
     img_log = log_compressed(img_envelope);
-    imagesc(z_axis,x_axis,img_log,[-60 0]);
+    imagesc(x_axis,z_axis,img_log,[-60 0]);
     colormap(gray);axis equal;axis tight
     title("frame"+i)
     pause(0.01);
@@ -32,7 +32,7 @@ casorati_mat = IQ_mat;
 clear casorati;
 
 % svd阶数
-ord1 = 85;
+ord1 = 55;
 ord2 = size(IQ_mat,2)-20;
 S_filt = zeros(size(S));
 for i = ord1:ord2
@@ -44,7 +44,7 @@ filtered_mat = U*S_filt*V';
 %% power doppler
 power_doppler = mean(abs(filtered_mat).^2,2);
 power_doppler = reshape(power_doppler,[Nz Nx]);
-figure(2);imagesc(z_axis,x_axis,log_compressed(power_doppler),[-50 0]);
+figure(2);imagesc(x_axis,z_axis,log_compressed(power_doppler),[-25 0]);
 colormap('hot');axis equal;axis tight;colorbar
 
 
