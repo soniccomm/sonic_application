@@ -1,12 +1,12 @@
 % author:seu
-% data:2025-07-30
+% date:2025-07-30
 
-% 此为能量多普勒（功率多普勒）第二步，第一步为采集数据
+% This is the second step for Power Doppler (Energy Doppler); step one is data acquisition.
 
-% 数据处理流程：
-% 带解调的波束合成 -> svd滤波 -> 计算能量
+% Data processing flow:
+% Beamforming with demodulation -> SVD filtering -> Calculate Energy
 
-% 可保存波束合成后IQ数据和能量图
+% Can save beamformed IQ data and power maps
 
 clear all
 clc
@@ -16,55 +16,55 @@ currentPath = pwd;
 parentDir = fileparts(fileparts(currentPath));
 addpath(genpath(parentDir));
 
-%% 必要参数
-filefolder = 'D:\software_matlab\exampledata\doppler\20251020190356';  % 数据所在文件夹
+%% Necessary Parameters
+filefolder = 'D:\software_matlab\exampledata\doppler\20251020190356';  % Directory where data is located
 
 % 
 [fs,prf,sampleNum,scanLine,imagedepth,focus_depth,cstartoffset,frame_nums,numperfile,steering_deg,scaninfo] = read_adc_para(strcat(filefolder,'\Param.txt'),'plane wave');
-fc=7.5e6; %发射频率
+fc=7.5e6; % Transmit frequency
 BF_SampleN = sampleNum;
 
-                            % fs               采样率
-                            % sampleNum       采样点数
-                            % numperfile       保存的数据每一包所含帧数
-                            % steering_deg     平面波发射角度
-                            % ImageDepth       图像深度
-                            % prf              采集数据所用的脉冲重复频率 
+                            % fs               Sampling rate
+                            % sampleNum        Number of sampling points
+                            % numperfile       Number of frames contained in each saved data bin
+                            % steering_deg     Plane wave steering angles
+                            % ImageDepth       Image depth
+                            % prf              Pulse Repetition Frequency used for data acquisition 
 
-load_file_num = 20;         % 读取并处理的文件数量
+load_file_num = 20;         % Number of files to read and process
 
-Imagestart = 0.002;         % B模式图像起始深度
-ImageDepth = 0.0360;         % B模式图像深度
-BeamN = 256;                % 线束（波束合成x方向线束数量）       
+Imagestart = 0.002;         % B-mode image start depth
+ImageDepth = 0.0360;        % B-mode image depth
+BeamN = 256;                % Beams (number of beams in x-direction for beamforming)       
 
-fft_period = 50;            % 计算一次血流所用帧数（Window Size）
+fft_period = 50;            % Number of frames used for one blood flow calculation (Window Size)
 
-x1_loc_real = -0.006;        % 取样框左上角物理坐标x1
-z1_loc_real = 0.003;       % 取样框左上角物理坐标z1
-x2_loc_real = 0.006;       % 取样框右下角物理坐标x2
-z2_loc_real = 0.015;       % 取样框右下角物理坐标z2
+x1_loc_real = -0.006;       % ROI top-left physical coordinate x1
+z1_loc_real = 0.003;        % ROI top-left physical coordinate z1
+x2_loc_real = 0.006;        % ROI bottom-right physical coordinate x2
+z2_loc_real = 0.015;        % ROI bottom-right physical coordinate z2
 
-svd_auto = 1;               % 是否使用自适应阈值进行svd滤波，若为1，则svd_ord1和svd_ord2不起作用
-svd_ord1 = 60;              % SVD滤波起始阶数
-svd_ord2 = 90;              % SVD滤波结束阶数
+svd_auto = 1;               % Whether to use adaptive threshold for SVD filtering. If 1, svd_ord1 and svd_ord2 are ignored
+svd_ord1 = 60;              % SVD filter start order
+svd_ord2 = 90;              % SVD filter end order
 
-is_save_BF = 1;             % 是否保存波束合成后IQ数据 1为保存 0为不保存
-Bmode_save_index = 1:1;       % 每一包数据保存的帧号
-                            % 仅在is_save_BF = 1时生效 例：1表示每一包仅保存第1帧，1:numperfile/numel(steering_deg)表示保存第1帧到最后一帧
-is_save_power = 1;          % 是否保存血流数据 1为保存 0为不保存
+is_save_BF = 1;             % Whether to save beamformed IQ data. 1 for save, 0 for do not save
+Bmode_save_index = 1:1;     % Frame indices to save for each data bin
+                            % Only effective when is_save_BF = 1. Example: 1 means save only the 1st frame, 1:numperfile/numel(steering_deg) means save from 1st to last frame
+is_save_power = 1;          % Whether to save blood flow data. 1 for save, 0 for do not save
 
-drange_B = 60;              % bmode动态范围
-drange_power = 30;          % 能量多普勒动态范围
+drange_B = 60;              % B-mode dynamic range
+drange_power = 30;          % Power Doppler dynamic range
 
-% 默认参数
-probe_name = 'L5-10';       % 探头名称
-TxChannel = 128;            % 发射通道数量
-RxChannel = 128;            % 接收通道数量
-sos = 1540;                 % 声速
+% Default parameters
+probe_name = 'L5-10';       % Probe name
+TxChannel = 128;            % Number of transmit channels
+RxChannel = 128;            % Number of receive channels
+sos = 1540;                 % Speed of sound
 
 
 
-%% 波束合成参数计算
+%% Beamforming Parameter Calculation
 
 probe = Probe_para(probe_name);
 ch_map = probe.rx_ele_map(1:RxChannel);
@@ -95,7 +95,7 @@ single_allbeamz = single(allbeamz);
 single_allbeamz_ptr = libpointer('singlePtr', single_allbeamz);
 single_allbeamz_len = length(single_allbeamz);
 
-single_cstartoffset = single(0);
+single_cstartoffset = single(cstartoffset);
 single_cstartoffset_ptr = libpointer('singlePtr', single_cstartoffset);
 single_cstartoffset_len = length(single_cstartoffset);
 
@@ -144,31 +144,31 @@ single_tx_delay_ptr = libpointer('singlePtr', single_tx_delay);
 single_tx_delay_len = length(single_tx_delay);
 
 
-%% 参数计算
+%% Parameter Calculation
 
-% 解调滤波器
+% Demodulation filter
 bandwidth = 80; 
 Wn = (fc*bandwidth/100)/(fs/2);
-% 确定滤波器长度 (经验公式)
-M = ceil(6.64 * fs/2 / (fc*bandwidth/100));   % Hamming 窗专用公式
-% 确保奇数长度以获得线性相位
+% Determine filter length (empirical formula)
+M = ceil(6.64 * fs/2 / (fc*bandwidth/100));   % Formula specific to Hamming window
+% Ensure odd length for linear phase
 if mod(M, 2) == 0
     M = M + 1;
 end
-% 使用 Hamming 窗设计低通 FIR 滤波器
+% Design low-pass FIR filter using Hamming window
 b_fir = fir1(M - 1, Wn, 'low', hamming(M));
-%给gpu传
+% Pass to GPU
 single_filter = single(b_fir);
 single_filter_ptr = libpointer('singlePtr', single_filter);
 single_filter_len = length(single_filter);
 
 % 
-buffer_num = floor(fft_period/(numperfile/SteeringNum))+2; %缓冲区个数
-t_idx = fft_period; % 这个idx是当前在图的idx 初始为fft_period 
-t_buffer_idx = fft_period; % 这个idx是在缓冲区的idx 初始为fft_period 
+buffer_num = floor(fft_period/(numperfile/SteeringNum))+2; % Number of buffers
+t_idx = fft_period; % This idx is the current index in the image, initially fft_period 
+t_buffer_idx = fft_period; % This idx is the index in the buffer, initially fft_period 
 
 
-%% 用于求血流的像素的坐标
+%% Coordinates of Pixels Used for Blood Flow Calculation
 
 
 x_dif = abs(x_axis - x1_loc_real);
@@ -201,9 +201,9 @@ single_z_loc_all = single(z_loc_all);
 single_z_loc_all_ptr = libpointer('singlePtr', single_z_loc_all);
 single_points_len = loc_num;
 
-%% 加载
+%% Loading
 
-%加载dll
+% Load DLL
 if ~libisloaded('US_APP')
     loadlibrary('US_APP.dll', 'ApplicationMatlabInterface.h');
 end
@@ -248,7 +248,7 @@ gpu_handle = calllib('US_APP', 'initializepowerGPU', ...
     rec_x_num, rec_z_num);
 
 
-%% 获取所有有效数据文件
+%% Get All Valid Data Files
 files =dir (fullfile (filefolder ,'**' ,'*bin' ));
 num_files =length (files);
 file_numbers =zeros (num_files, 1);
@@ -269,9 +269,9 @@ valid_numbers =file_numbers (valid_indices);
 sorted_files =valid_files (sort_indices);
 
 
-%% 定义图像
+%% Define Image
 
-% 要显示的B模式图像（波束合成图）
+% B-mode image to display (beamformed image)
 bfdata = zeros(1, 2* BF_SampleN * BeamN * numperfile / SteeringNum);
 bfdata = single(bfdata);
 bfdata_ptr = libpointer('singlePtr', bfdata);
@@ -280,7 +280,7 @@ valid_indices = find(z_axis >= Imagestart & z_axis <= ImageDepth);
 zz_cut = z_axis(valid_indices);
 Nz_cut = numel(valid_indices);
 
-% 获取屏幕尺寸
+% Get screen dimensions
 screen_size = get(0, 'ScreenSize');
 screen_width = screen_size(3);
 screen_height = screen_size(4);
@@ -288,37 +288,37 @@ screen_height = screen_size(4);
 real_width = x_grid(end)- x_grid(1);
 real_height = z_grid(end) - z_grid(1);
 
-% 规定窗口占据屏幕比例
+% Define window proportion relative to screen
 fig_width_ratio = 0.3;
 fig_height_ratio = real_height/real_width*fig_width_ratio*1.5;
-% 设置窗口大小
+% Set window size
 fig_width = screen_width * fig_width_ratio;
 fig_height = screen_height * fig_height_ratio;
-% 设置窗口位置
+% Set window position
 fig_left = screen_width * (0.5-fig_width_ratio/2);
 fig_bottom = screen_height * (1-fig_height_ratio)/2;
 
 hFig1 = figure('Name',"Bmode",'Position', [fig_left, fig_bottom, fig_width, fig_height]);
 hIm1 = imagesc(x_axis, zz_cut, zeros(Nz_cut,BeamN)-100,[-60 0]);
-colormap(gray);title("能量多普勒");
+colormap(gray);title("Power Doppler");
 axis equal;axis tight
 
-power_min = -drange_power;  % 能量最低 dB
-power_max = 0;   % 能量最高 dB
+power_min = -drange_power;  % Min power dB
+power_max = 0;   % Max power dB
 colormap(hot); 
-cb = colorbar; % 添加 colorbar
-cb.Label.String = 'power (dB)'; % 设置 colorbar 标签
-% 设置 colorbar 的刻度范围，与血流数据范围对应
+cb = colorbar; % Add colorbar
+cb.Label.String = 'power (dB)'; % Set colorbar label
+% Set colorbar limits to correspond with blood flow data range
 caxis([power_min, power_max]);
 
 hold on
 rectangle('Position', [x_axis(x_left), z_axis(z_up), x_axis(x_right) - x_axis(x_left), z_axis(z_down) - z_axis(z_up)], 'EdgeColor', 'r', 'LineWidth', 2);
 
-% 要显示的blood
+% Blood flow to display
 power_matrix = single(zeros(rec_z_num, rec_x_num));
 power_matrix_ptr = libpointer('singlePtr', power_matrix);
 
-% 如果要保存则创建文件夹
+% Create directory if saving is enabled
 if is_save_BF
     if ~exist(fullfile(filefolder, 'bfdata'), 'dir')
         mkdir(fullfile(filefolder, 'bfdata'));
@@ -334,7 +334,7 @@ if is_save_power
 end
 
 
-%% 读取数据并处理
+%% Read Data and Process
 for file_i = 1:load_file_num
     disp(fullfile(sorted_files(file_i).folder, sorted_files(file_i).name))
     fileID = fopen(fullfile(sorted_files(file_i).folder, sorted_files(file_i).name), 'rb'); 
@@ -342,7 +342,7 @@ for file_i = 1:load_file_num
     fseek(fileID,0,1);
     nFileLen = ftell(fileID);
     fseek(fileID,0,-1);
-    %注意这里类型控制
+    % Note type control here
     alldata = fread(fileID, nFileLen,'int8=>int8');
     
     sid = 0;
@@ -350,7 +350,7 @@ for file_i = 1:load_file_num
     cur_data = alldata(1:(numperfile/SteeringNum)*alldata_len);
     
     alldata_ptr = libpointer('int8Ptr', cur_data);
-    bag_idx = file_i-1;  %这个bag_idx要从0开始
+    bag_idx = file_i-1;  % This bag_idx must start from 0
     ret = calllib('US_APP', 'processPowerDataBeamformingandPostGPU', gpu_handle, alldata_ptr, ...
         alldata_len, bfdata_ptr, power_matrix_ptr, bag_idx); 
     
@@ -362,38 +362,38 @@ for file_i = 1:load_file_num
     B_image(B_image<-drange_B) = -drange_B;
     B_image(B_image>0) = 0;
     B_image = B_image + drange_B;
-    B_image = B_image/drange_B; % 现在 B_image 的范围是 [0, 1]
-    B_image_rgb = repmat(B_image, [1, 1, 3]); % 复制三份，创建 [rows, cols, 3] 的 RGB 矩阵
+    B_image = B_image/drange_B; % Now B_image range is [0, 1]
+    B_image_rgb = repmat(B_image, [1, 1, 3]); % Replicate 3 times to create [rows, cols, 3] RGB matrix
 
     if is_save_BF
         bfdata_save = bfdata_iq(:,:,Bmode_save_index);
         save(fullfile(filefolder,'bfdata',num2str(bag_idx)+".mat"), 'bfdata_save',"x_axis","z_axis");
     end
 
-    % 获取power套回原图位置 
+    % Get power data and map back to original image position 
     power_matrix_update = reshape(power_matrix_ptr.Value, rec_z_num, rec_x_num);
     power_matrix_update = log_compressed(power_matrix_update);
     power_full = zeros(BF_SampleN,BeamN);
     power_full(z_up:z_down,x_left:x_right) = power_matrix_update;
     power_full = power_full(valid_indices,:);
 
-    % 获取区域mask 套回原图位置
+    % Get area mask and map back to original image position
     flow_mask_full = zeros(BF_SampleN,BeamN);
     flow_mask_full(z_up:z_down,x_left:x_right) = 1;
     flow_mask_full = logical(flow_mask_full); 
     flow_mask_full = flow_mask_full(valid_indices,:);
-    % 将掩码扩展到3个颜色通道
+    % Expand mask to 3 color channels
     mask_3D = repmat(flow_mask_full, [1, 1, 3]);
 
-    % 将数据归一化到 [1, 256] 的整数索引
+    % Normalize data to [1, 256] integer indices
     power_indices = round( (power_full - power_min) / (power_max - power_min) * 255 + 1 );
-    % 处理超出范围的值
+    % Handle out-of-range values
     power_indices(power_indices < 1) = 1;
     power_indices(power_indices > 256) = 256;
-    % 使用 ind2rgb 将索引矩阵和 colormap 转换为 RGB 图像
+    % Use ind2rgb to convert index matrix and colormap to RGB image
     power_image_rgb = ind2rgb(power_indices, hot(256));
 
-    % 在掩码区域，用血流图数据替换掉原来的灰度数据
+    % In masked areas, replace original grayscale data with blood flow data
     B_image_rgb(mask_3D) = power_image_rgb(mask_3D);
 
     hIm1.CData = B_image_rgb;
@@ -408,12 +408,12 @@ for file_i = 1:load_file_num
 end
 
 
-%% 卸载
+%% Unload
 
-%释放显存和内存
+% Release GPU memory and RAM
 calllib('US_APP', 'deleteBeamformingGPUHandle', gpu_handle);
 
-%卸载dll
+% Unload DLL
 unloadlibrary('US_APP');
 
 
