@@ -1,4 +1,4 @@
-%% 自定义colormap
+%% Custom colormap
 
 function customMap = getflowcolormap()
 numColors = 256;
@@ -31,7 +31,7 @@ g = interp1(1:numPoints, selectedColors(:, 2), xq, 'pchip');
 b = interp1(1:numPoints, selectedColors(:, 3), xq, 'pchip');
 
 
-% 创建colormap矩阵
+% Create colormap matrix
 customMap = [r(:), g(:), b(:)]/256;
 
 
