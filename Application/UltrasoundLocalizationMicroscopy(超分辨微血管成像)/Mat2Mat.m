@@ -1,139 +1,136 @@
-% 函数功能：
-% 本脚本旨在将原始分段保存的波束合成后IQ数据（通常每文件帧数较少或不固定），
-% 按照后续算法（如多普勒计算、ULM成像）所需的指定帧长度（framenum），
-% 重新拼接、裁切并打包成新的数据文件序列。
+% Function Functionality:
+% This script aims to take the original segmented saved beamformed IQ data (usually with few or variable frames per file), and according to the specified 
+% frame length (framenum) required by subsequent algorithms (like Doppler calculation, ULM imaging), 
+% re-stitch, crop, and repackage them into a new data file sequence.
 
 clear all
 clc
 close all
-% 加载当前环境变量
+% Load current environment variables
 currentPath = pwd;
 parentDir = fileparts(fileparts(fileparts(currentPath)));
 addpath(genpath(parentDir));
 
 
-% 波束合成数据路径（读取数据的路径）
+% Beamformed data path (path for reading data)
 data_filepath = 'D:\software_matlab\exampledata\ULM\20250703165301\bfiq';
 
-% 波束合成数据路径（保存数据的路径）
+% Beamformed data path (path for saving data)
 data_save_filepath = 'D:\software_matlab\exampledata\ULM\20250703165301\bfiq_com';
 if ~exist(data_save_filepath,'dir')
         mkdir(data_save_filepath);
 end
 
 
-%% 获取数据文件列表
+%% Get data file list
 [load_file_start_idx,min_num,max_num,sorted_files] = getfiles_mat(data_filepath);
 
-% 获取尺寸
+% Get dimensions
 load(fullfile(sorted_files(1).folder, sorted_files(1).name))
 [H,W,frameperfile] = size(bfdata_iq);
 
-%% 读取拼接
-% 需要多少帧计算多普勒
+%% Read and Stitch
+% Number of frames needed for Doppler calculation
 framenum = 100;
 
-% 计算从开始索引到结束一共有多少个文件
+% Calculate total number of files from start index to end
 total_available_files = max_num - load_file_start_idx + 1;
 
-% 计算总帧数
+% Calculate total frames
 total_frames_all = total_available_files * frameperfile;
 
-% 计算可以完整拼凑的包数 (向下取整，不足一包的丢弃)
+% Calculate number of complete packages (round down, discard incomplete packages)
 num_packages = floor(total_frames_all / framenum);
 
-fprintf('可用总帧数: %d\n', total_frames_all);
-fprintf('每包帧数: %d\n', framenum);
-fprintf('预计生成包数: %d\n', num_packages);
+fprintf('Total available frames: %d\n', total_frames_all);
+fprintf('Frames per package: %d\n', framenum);
+fprintf('Estimated packages to generate: %d\n', num_packages);
 
 if num_packages == 0
-    error("数据总量不足以拼凑一个完整的包 (%d 帧)", framenum);
+    error("Insufficient total data to assemble a complete package (%d frames)", framenum);
 end
 
-%% 循环打包处理
+%% Loop for packaging process
 disp("---------------------------------")
-disp("开始分包处理...")
+disp("Starting package processing...")
 
-% 外层循环：对应每一个要生成的包 (Package)
+% Outer loop: Corresponds to each package to be generated
 for pkg_idx = 1 : num_packages
     
-    % 1. 预分配当前包的内存
+    % 1. Pre-allocate memory for the current package
     IQ = (zeros(H, W, framenum));
     
-    % 2. 计算当前包在全局时间轴上的 起始帧 和 结束帧 (绝对索引)
+    % 2. Calculate Start Frame and End Frame on global timeline for current package (absolute index)
     global_req_start = (pkg_idx - 1) * framenum + 1;
     global_req_end   = pkg_idx * framenum;
     
-    % 3. 计算这一包数据跨越了哪些文件 (相对于 sorted_files 的索引)
-    % 索引从0开始算，方便取余和整除
+    % 3. Calculate which files this package spans (relative index to sorted_files)
+    % Index starts from 0 for easier modulo and division operations
     file_rel_idx_start = floor((global_req_start - 1) / frameperfile);
     file_rel_idx_end   = floor((global_req_end   - 1) / frameperfile);
     
-    % 内层循环：遍历覆盖当前包的所有源文件
+    % Inner loop: Iterate through all source files covering the current package
     for f_rel = file_rel_idx_start : file_rel_idx_end
         
-        % 定位实际文件
-        % load_file_start_idx 是 getfiles_mat 返回的起始文件在列表中的位置
-        % 注意：这里假设 sorted_files 是按顺序排列的
+        % Locate actual file
+        % load_file_start_idx is the position of the starting file in the list returned by getfiles_mat
+        % Note: Assuming sorted_files are arranged in order
         current_file_list_idx = load_file_start_idx + f_rel; 
         
-        % 文件地址
+        % File path
         file_path = fullfile(sorted_files(current_file_list_idx-min_num+1).folder, sorted_files(current_file_list_idx-min_num+1).name);
         
-        % 加载源文件
-        % disp(['  -> 读取源文件片段: ', sorted_files(current_file_list_idx).name]);
+        % Load source file
+        % disp(['  -> Reading source file segment: ', sorted_files(current_file_list_idx).name]);
         load(file_path, 'bfdata_iq');
         
-        % --- 核心逻辑：计算剪切和拼接的索引 ---
+        % --- Core Logic: Calculate cropping and stitching indices ---
         
-        % 当前文件包含的全局帧范围
+        % Global frame range contained in the current file
         file_global_start = f_rel * frameperfile + 1;
         file_global_end   = (f_rel + 1) * frameperfile;
         
-        % 计算当前文件与当前包需求的 交集范围
+        % Calculate intersection range between current file and current package requirements
         overlap_start = max(global_req_start, file_global_start);
         overlap_end   = min(global_req_end, file_global_end);
         
-        % 计算交集长度
+        % Calculate intersection length
         len = overlap_end - overlap_start + 1;
         
         if len > 0
-            % 源数据索引 (在当前读取的 bfdata_iq 中的位置)
+            % Source data indices (position in the currently read bfdata_iq)
             src_idx_start = overlap_start - file_global_start + 1;
             %disp("src_idx_start "+src_idx_start)
             src_idx_end   = src_idx_start + len - 1;
             %disp("src_idx_end "+src_idx_end)
             
-            % 目标数据索引 (在当前包 bfiq_com 中的位置)
+            % Destination data indices (position in the current package IQ)
             dst_idx_start = overlap_start - global_req_start + 1;
             %disp("dst_idx_start "+dst_idx_start)
             dst_idx_end   = dst_idx_start + len - 1;
             %disp("dst_idx_end "+dst_idx_end)
             
-            % 填入数据
+            % Fill data
             IQ(:, :, dst_idx_start:dst_idx_end) = bfdata_iq(:, :, src_idx_start:src_idx_end);
         end
     end
     
-    % 4. 保存当前包
-    % 命名格式：bfiq_com_1.mat, bfiq_com_2.mat ...
+    % 4. Save current package
+    % Naming format: bfiq_com_1.mat, bfiq_com_2.mat ...
     save_filename = sprintf('bfiq_com_%03d.mat', pkg_idx);
     save_fullpath = fullfile(data_save_filepath, save_filename);
     
-    % 保存变量，注意这里保存的变量名是 bfiq_com
-    % 如果有 x_axis 和 z_axis，也可以一起保存，假设它们是不变的
+    % Save variables, note that the variable saved here is IQ
+    % If x_axis and z_axis exist, save them together, assuming they are invariant
     if exist('x_axis', 'var') && exist('z_axis', 'var')
         save(save_fullpath, "IQ", "x_axis", "z_axis");
     else
         save(save_fullpath, "IQ");
     end
     
-    fprintf('已保存第 %d 包: %s (包含 %d 帧)\n', pkg_idx, save_filename, framenum);
+    fprintf('Saved package %d: %s (contains %d frames)\n', pkg_idx, save_filename, framenum);
     
 end
 
 disp("---------------------------------")
-disp("所有完整数据包处理完毕。");
-
-
-
+disp("All complete data packages processed.");
