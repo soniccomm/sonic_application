@@ -1,12 +1,12 @@
 % author:seu
-% data:2025-07-30
+% date:2025-07-30
 
-% 此为频谱多普勒第二步，第一步为采集数据（单角度）
+% This is the second step of Spectral Doppler; step one is data acquisition (single angle).
 
-% 数据处理流程：
-% 带解调的波束合成 -> fft_period帧数据做壁滤波 -> 计算各点频谱再相加 -> （将频移换算成流速并）显示
+% Data processing flow:
+% Beamforming with demodulation -> Wall filtering on fft_period frames -> Calculate spectrum for each point and sum them up -> (Convert frequency shift to flow velocity and) Display
 
-% 可保存波束合成后IQ数据和频谱图
+% Can save beamformed IQ data and spectrograms
 
 clear all
 clc
@@ -16,55 +16,55 @@ currentPath = pwd;
 parentDir = fileparts(fileparts(currentPath));
 addpath(genpath(parentDir));
 
-%% 必要参数
-filefolder = 'D:\software_matlab\exampledata\doppler\20251020190426';  % 数据所在文件夹
+%% Necessary Parameters
+filefolder = 'D:\software_matlab\exampledata\doppler\20251020190426';  % Directory where data is located
 
 % 
 [fs,prf,sampleNum,scanLine,imagedepth,focus_depth,cstartoffset,frame_nums,numperfile,steering_deg,scaninfo] = read_adc_para(strcat(filefolder,'\Param.txt'),'plane wave');
-fc=7.5e6; %发射频率
+fc=7.5e6; % Transmit frequency
 BF_SampleN = sampleNum;
 
-                            % fs               采样率
-                            % sampleNum       采样点数
-                            % numperfile       保存的数据每一包所含帧数
-                            % steering_deg     平面波发射角度
-                            % ImageDepth       图像深度
-                            % prf              采集数据所用的脉冲重复频率 
+                            % fs               Sampling rate
+                            % sampleNum        Number of sampling points
+                            % numperfile       Number of frames contained in each saved data bin
+                            % steering_deg     Plane wave steering angles
+                            % ImageDepth       Image depth
+                            % prf              Pulse Repetition Frequency used for data acquisition 
 
 
-load_file_num = 40;         % 读取并处理的文件数量
+load_file_num = 40;         % Number of files to read and process
 
-Imagestart = 0.002;         % B模式图像起始深度
-ImageDepth = 0.040;         % B模式图像深度
-BeamN = 256;                % 线束（波束合成x方向线束数量）       
+Imagestart = 0.002;         % B-mode image start depth
+ImageDepth = 0.040;         % B-mode image depth
+BeamN = 256;                % Beams (number of beams in x-direction for beamforming)       
 
-t_axis_span = 2;            % 秒 定义循环刷新的频谱图的时间跨度
-fft_period = 50;            % 计算一次频谱所用帧数（Spectral Window Size）
-lag = 5;                    % 相邻频谱间隔的帧数（Spectral Update Interval/Hop Size）
-cutoff_fre = 150;           % Hz 壁滤波截止频率
+t_axis_span = 2;            % Seconds. Defines the time span of the cyclically refreshed spectrogram
+fft_period = 50;            % Number of frames used to calculate one spectrum (Spectral Window Size)
+lag = 5;                    % Number of frames between adjacent spectra (Spectral Update Interval/Hop Size)
+cutoff_fre = 150;           % Hz Wall filter cutoff frequency
 
-x_loc_real = 0.00635;       % 取样线中心点物理坐标x
-z_loc_real = 0.011183;      % 取样线中心点物理坐标z
-
-
-is_save_BF = 1;             % 是否保存波束合成后IQ数据 1为保存 0为不保存
-Bmode_save_index = 1:5;       % 每一包数据保存的帧号
-                            % 仅在is_save_BF = 1时生效 例：1表示每一包仅保存第1帧，1:numperfile表示保存第1帧到最后一帧
-is_save_spectral = 1;       % 是否保存频谱数据 1为保存 0为不保存
-
-is_fftshift = 1;            % 是否将零频分量移到频谱中心
-is_velocity = 1;            % 频谱图纵轴显示 1表示显示流速 0表示显示频移
-reference_angle = 60;       % 平面波和血流参考角度
-
-% 默认参数
-probe_name = 'L5-10';       % 探头名称
-TxChannel = 128;            % 发射通道数量
-RxChannel = 128;            % 接收通道数量
-sos = 1540;                 % 声速
+x_loc_real = 0.00635;       % Sample line center point physical coordinate x
+z_loc_real = 0.011183;      % Sample line center point physical coordinate z
 
 
+is_save_BF = 1;             % Whether to save beamformed IQ data. 1 for save, 0 for do not save
+Bmode_save_index = 1:5;     % Frame indices to save for each data bin
+                            % Only effective when is_save_BF = 1. Example: 1 means save only the 1st frame, 1:numperfile means save from 1st to last frame
+is_save_spectral = 1;       % Whether to save spectral data. 1 for save, 0 for do not save
 
-%% 波束合成参数计算
+is_fftshift = 1;            % Whether to shift the zero-frequency component to the center of the spectrum
+is_velocity = 1;            % Spectrogram y-axis display. 1 to display flow velocity, 0 to display frequency shift
+reference_angle = 60;       % Plane wave and blood flow reference angle
+
+% Default parameters
+probe_name = 'L5-10';       % Probe name
+TxChannel = 128;            % Number of transmit channels
+RxChannel = 128;            % Number of receive channels
+sos = 1540;                 % Speed of sound
+
+
+
+%% Beamforming Parameter Calculation
 
 probe = Probe_para(probe_name);
 ch_map = probe.rx_ele_map(1:RxChannel);
@@ -95,7 +95,7 @@ single_allbeamz = single(allbeamz);
 single_allbeamz_ptr = libpointer('singlePtr', single_allbeamz);
 single_allbeamz_len = length(single_allbeamz);
 
-single_cstartoffset = single(0);
+single_cstartoffset = single(cstartoffset);
 single_cstartoffset_ptr = libpointer('singlePtr', single_cstartoffset);
 single_cstartoffset_len = length(single_cstartoffset);
 
@@ -144,25 +144,25 @@ single_tx_delay_ptr = libpointer('singlePtr', single_tx_delay);
 single_tx_delay_len = length(single_tx_delay);
 
 
-%% 参数计算
+%% Parameter Calculation
 
-% 解调滤波器
+% Demodulation filter
 bandwidth = 80; 
 Wn = (fc*bandwidth/100)/(fs/2);
-% 确定滤波器长度 (经验公式)
-M = ceil(6.64 * fs/2 / (fc*bandwidth/100));   % Hamming 窗专用公式
-% 确保奇数长度以获得线性相位
+% Determine filter length (empirical formula)
+M = ceil(6.64 * fs/2 / (fc*bandwidth/100));   % Formula specific to Hamming window
+% Ensure odd length for linear phase
 if mod(M, 2) == 0
     M = M + 1;
 end
-% 使用 Hamming 窗设计低通 FIR 滤波器
+% Design low-pass FIR filter using Hamming window
 b_fir = fir1(M - 1, Wn, 'low', hamming(M));
-%给gpu传
+% Pass to GPU
 single_filter = single(b_fir);
 single_filter_ptr = libpointer('singlePtr', single_filter);
 single_filter_len = length(single_filter);
 
-% 壁滤波
+% Wall filtering
 fre_max = prf/2; %nyquist
 filter_order = 4;
 [b3, a3] = butter(filter_order,cutoff_fre/fre_max,"high");
@@ -170,7 +170,7 @@ filter_order = 4;
 b3 = b3(:);a3 = a3(:);
 A = eye(filter_order) - [-a3(2:end), [eye(filter_order-1); zeros(1, filter_order-1)]];
 zi = A \ (b3(2:end) - b3(1)*a3(2:end));
-%给gpu传
+% Pass to GPU
 single_iir_b = single(b3);
 single_iir_a = single(a3);
 single_iir_zi = single(zi);
@@ -180,14 +180,14 @@ single_iir_zi_ptr = libpointer('singlePtr', single_iir_zi);
 single_iir_len = filter_order;
 
 % 
-buffer_num = floor(fft_period/(numperfile/SteeringNum))+2; %缓冲区个数
-t_idx = fft_period; % 这个idx是当前在频谱图的idx 初始为fft_period 
-t_buffer_idx = fft_period; % 这个idx是在缓冲区的idx 初始为fft_period 
+buffer_num = floor(fft_period/(numperfile/SteeringNum))+2; % Number of buffers
+t_idx = fft_period; % This idx is the current index in the spectrogram, initially fft_period 
+t_buffer_idx = fft_period; % This idx is the index in the buffer, initially fft_period 
 
 
-%% 用于求频谱的像素的坐标
+%% Coordinates of Pixels Used for Spectrum Calculation
 
-% 平面波发射角
+% Plane wave transmit angle
 tx_angle_deg = steering_deg;
 tx_angle_rad = deg2rad(tx_angle_deg);
 ratio_xz = tan(tx_angle_rad);
@@ -225,9 +225,9 @@ single_z_loc_all = single(z_loc_all);
 single_z_loc_all_ptr = libpointer('singlePtr', single_z_loc_all);
 single_points_len = loc_num;
 
-%% 加载
+%% Loading
 
-%加载dll
+% Load DLL
 if ~libisloaded('US_APP')
     loadlibrary('US_APP.dll', 'ApplicationMatlabInterface.h');
 end
@@ -269,7 +269,7 @@ gpu_handle = calllib('US_APP', 'initializespectralGPU', ...
     single_iir_b_ptr, single_iir_a_ptr,single_iir_zi_ptr, single_iir_len);
 
 
-%% 获取所有有效数据文件
+%% Get All Valid Data Files
 files =dir (fullfile (filefolder ,'**' ,'*bin' ));
 num_files =length (files);
 file_numbers =zeros (num_files, 1);
@@ -290,9 +290,9 @@ valid_numbers =file_numbers (valid_indices);
 sorted_files =valid_files (sort_indices);
 
 
-%% 定义图像
+%% Define Image
 
-% 要显示的B模式图像（波束合成图）
+% B-mode image to display (beamformed image)
 bfdata = zeros(1, 2* BF_SampleN * BeamN * numperfile / SteeringNum);
 bfdata = single(bfdata);
 bfdata_ptr = libpointer('singlePtr', bfdata);
@@ -301,7 +301,7 @@ valid_indices = find(z_axis >= Imagestart & z_axis <= ImageDepth);
 zz_cut = z_axis(valid_indices);
 Nz_cut = numel(valid_indices);
 
-% 获取屏幕尺寸
+% Get screen dimensions
 screen_size = get(0, 'ScreenSize');
 screen_width = screen_size(3);
 screen_height = screen_size(4);
@@ -309,19 +309,19 @@ screen_height = screen_size(4);
 real_width = x_grid(end)- x_grid(1);
 real_height = z_grid(end) - z_grid(1);
 
-% 规定窗口占据屏幕比例
+% Define window proportion relative to screen
 fig_width_ratio = 0.3;
 fig_height_ratio = real_height/real_width*fig_width_ratio*1.5;
-% 设置窗口大小
+% Set window size
 fig_width = screen_width * fig_width_ratio;
 fig_height = screen_height * fig_height_ratio;
-% 设置窗口位置
+% Set window position
 fig_left = screen_width * 0.1;
 fig_bottom = screen_height * (1-fig_height_ratio)/2;
 
 hFig1 = figure('Name',"Bmode",'Position', [fig_left, fig_bottom, fig_width, fig_height]);
 hIm1 = imagesc(x_axis, zz_cut, zeros(Nz_cut,BeamN)-100,[-60 0]);
-colormap(gray);title("平面波成像");
+colormap(gray);title("Plane Wave Imaging");
 axis equal;axis tight
 
 hold on
@@ -329,7 +329,7 @@ for loc_idx = 1:loc_num
     scatter(x_axis(x_loc_all(loc_idx)), z_axis(z_loc_all(loc_idx)), 2, 'g', 'filled');
 end
 
-% 要显示的频谱图
+% Spectrogram to display
 if is_fftshift
     y_axis = -prf/2: prf/fft_period : prf/2-prf/fft_period;
     if is_velocity
@@ -346,29 +346,29 @@ t_axis_num = t_axis_span*prf/lag;
 t_axis = (1:t_axis_num)*(lag/prf);
 spectral_matrix = single(zeros(y_axis_num, t_axis_num));
 
-% 设置窗口大小
+% Set window size
 fig_width_ratio = 0.4;
 fig_height_ratio = 0.3;
 fig_width = screen_width * fig_width_ratio;
 fig_height = screen_height * fig_height_ratio;
-% 设置窗口位置
+% Set window position
 fig_left = screen_width * 0.5;
 fig_bottom = screen_height * (1-fig_height_ratio)/2;
 
 hFig2 = figure('Name',"spectral doppler",'Position', [fig_left, fig_bottom, fig_width, fig_height]);
 hIm2 = imagesc(t_axis, y_axis, spectral_matrix);
 set(gca, 'YDir', 'normal')
-colormap(gray);title("频谱多普勒成像");
-xlabel('时间 (s)');
+colormap(gray);title("Spectral Doppler Imaging");
+xlabel('Time (s)');
 if is_velocity
-    ylabel('速度 (cm/s)');
+    ylabel('Velocity (cm/s)');
 else
-    ylabel('频移 (Hz)');
+    ylabel('Frequency Shift (Hz)');
 end
 spectral_matrix_ptr = libpointer('singlePtr', spectral_matrix);
 
 
-% 如果要保存则创建文件夹
+% Create directory if saving is enabled
 if is_save_BF
     if ~exist(fullfile(filefolder, 'bfdata'), 'dir')
         mkdir(fullfile(filefolder, 'bfdata'));
@@ -381,7 +381,7 @@ if is_save_spectral
 end
 
 
-%% 读取数据并处理
+%% Read Data and Process
 for file_i = 1:load_file_num
     disp(fullfile(sorted_files(file_i).folder, sorted_files(file_i).name))
     fileID = fopen(fullfile(sorted_files(file_i).folder, sorted_files(file_i).name), 'rb'); 
@@ -389,7 +389,7 @@ for file_i = 1:load_file_num
     fseek(fileID,0,1);
     nFileLen = ftell(fileID);
     fseek(fileID,0,-1);
-    %注意这里类型控制
+    % Note type control here
     alldata = fread(fileID, nFileLen,'int8=>int8');
     
     sid = 0;
@@ -397,7 +397,7 @@ for file_i = 1:load_file_num
     cur_data = alldata(1:(numperfile/SteeringNum)*alldata_len);
     
     alldata_ptr = libpointer('int8Ptr', cur_data);
-    bag_idx = file_i-1;  %这个bag_idx要从0开始
+    bag_idx = file_i-1;  % This bag_idx must start from 0
     ret = calllib('US_APP', 'processSpectralDataBeamformingandPostGPU', gpu_handle, alldata_ptr, ...
         alldata_len, bfdata_ptr, spectral_matrix_ptr, bag_idx); 
     
@@ -431,12 +431,12 @@ for file_i = 1:load_file_num
 end
 
 
-%% 卸载
+%% Unload
 
-%释放显存和内存
+% Release GPU memory and RAM
 calllib('US_APP', 'deleteBeamformingGPUHandle', gpu_handle);
 
-%卸载dll
+% Unload DLL
 unloadlibrary('US_APP');
 
 
