@@ -122,6 +122,7 @@ for pkg_idx = 1 : num_packages
     
     % Save variables, note that the variable saved here is IQ
     % If x_axis and z_axis exist, save them together, assuming they are invariant
+    IQ = single(IQ);
     if exist('x_axis', 'var') && exist('z_axis', 'var')
         save(save_fullpath, "IQ", "x_axis", "z_axis");
     else
