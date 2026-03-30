@@ -1,78 +1,86 @@
-% 此脚本为超分辨微血管成像第三步（第一步为采集数据，第二步为波束合成成像PlaneWave_bf_linear/PlaneWave_bf_convex）
-
-% 直接调用pala工具箱
+% Directly invoke PALA toolbox
 clear;clc;close all;
 addpath(genpath('.\PALA_SRUS'));
+currentPath = pwd;
+parentDir = fileparts(fileparts(currentPath));
+addpath(genpath(parentDir));
 
 %% load data
-dataFolder = 'D:\software_matlab\exampledata\bb';
+% if micro bubbles are too much, choose ROI to get better tracking
+ROI_z = 1:400;
+ROI_x = 1:256;
+
+dataFolder = 'D:\software_matlab\exampledata\S256-ULM\bfiq';
+resultFolder = fullfile(dataFolder,'results');
+
+if ~exist(resultFolder,'dir')
+    mkdir(resultFolder);
+end
+
 IQdataList = {};
 IQnum = 1;
-fileList = dir([dataFolder,filesep,'bfiq_*.mat']);
+fileList = dir([dataFolder,filesep,'*.mat']);
 for i = 1:numel(fileList)
     IQdataList{IQnum} = [fileList(i).folder,filesep,fileList(i).name];
     IQnum = IQnum + 1;
 end
 IQnum = IQnum - 1;
-Nbuffers = IQnum;
-%%
-for i = 1:numel(IQdataList)
-    disp(i);
-    load(IQdataList{i});
-%     bfiq = reshape(bfiq,257,128,500);
-    save(IQdataList{i},"bfiq");
-end
+
+
 
 %% Adapt parameters
 load(IQdataList{1});
-% bfiq = bfiqs;
+bfiq = IQ;
 PData.PDelta = [1 1 1];
 PData.Origin = [0 size(bfiq,2)/2 0];
-% PData.Size = [size(bfiq,1) size(bfiq,2) 1];
-PData.Size = [244 244 1];
-framerate = 1000;  % compounded frame rate
+PData.Size = [size(bfiq(ROI_z,ROI_x,:),1) size(bfiq(ROI_z,ROI_x,:),2) 1];
+% PData.Size = [244 244 1];
+framerate = 1200;  % compounded frame rate
 NbFrames = size(bfiq,3);   % frame num each IQdata contains
 lambda = 0.1;
 %% ULM parameters
 res = 10;
 ULM = struct( ...                       
-    'numberOfParticles', 70,...         % Number of particles per frame. (30-100)
+    'numberOfParticles', 100,...         % Number of particles per frame. (30-100)
     'res',10,...                        % Resolution factor. Typically 10 for images at lambda/10.
-    'SVD_cutoff',[5 NbFrames - 1],...  % svd filtering
+    'SVD_cutoff',[50 NbFrames - 50],...  % svd filtering
     'max_linking_distance',2,...        % Maximum linking distance between two frames to reject pairing, in pixels units (UF.scale(1)). (2-4 pixel).
     'min_length', 15,...                 % Minimum length of the tracks. (5-20)
     'fwhm',[1 1]*3,...                  % Size of the mask for localization. (3x3 for pixel at lambda, 5x5 at lambda/2). [fmwhz fmwhx]
     'max_gap_closing', 0,...            % Allowed gap in microbubbles pairing. (0)
-    'size',[size(bfiq,1),size(bfiq,2),NbFrames],...
+    'size',[size(bfiq(ROI_z,ROI_x,:),1),size(bfiq(ROI_z,ROI_x,:),2),NbFrames],...
     'scale',[1 1 1/framerate],...       % Scale [z x t]
     'numberOfFramesProcessed',NbFrames,... % Number of processed frames
     'interp_factor',1/res...            % interpfactor
     );
-ULM.butter.CuttofFreq = [50 250];       % Cut off frequency (Hz) for additional filter. Typically [20 300] at 1kHz.
+ULM.butter.CuttofFreq = [50 300];       % Cut off frequency (Hz) for additional filter. Typically [20 300] at 1kHz.
 ULM.butter.samplingFreq = framerate;    % Sampling frequency (Hz)
 [but_b,but_a] = butter(2,ULM.butter.CuttofFreq/(ULM.butter.samplingFreq/2),'bandpass');
 ULM.parameters.NLocalMax = 3;           % Safeguard on the number of maxLocal in the fwhm*fwhm grid (3 for fwhm=3, 7 for fwhm=5)
 res = ULM.res;
 % listAlgo = {'no_shift','wa','interp_cubic','interp_lanczos','interp_spline','gaussian_fit','radial'};
-listAlgo = {'wa','gaussian_fit','radial'};
+% listAlgo = {'wa','gaussian_fit','radial'};
+listAlgo = {'gaussian_fit'};
 Nalgo = numel(listAlgo);
 
 %% select SVD filtering Noise
 % load one of the bfiq to test SVD thresholds
-% load(IQdataList{100});
-% 
-% bulles = SVDfilter(bfiq,ULM.SVD_cutoff);
-% bulles = filter(but_b,but_a,bulles,[],3);
-% bulles(~isfinite(bulles))=0;
-% 
-% figure(7556);
-% for i = 1:size(bfiq,2)
-%     img_envelope = abs(bulles(:,:,i));
-%     img_log = log_compressed(img_envelope);
-%     img_log = imresize(img_log,[512 512]);
-%     imshow(img_log,[-30 0]);
-%     pause(0.02);
-% end
+bag_idx = 1;
+load(IQdataList{1});
+bfiq = IQ(ROI_z,ROI_x,:);
+bulles = SVDfilter(bfiq,ULM.SVD_cutoff);
+bulles = filter(but_b,but_a,bulles,[],3);
+bulles(~isfinite(bulles))=0;
+
+figure("Name","Filter visualization");
+for i = 1:size(bfiq,3)
+    img_envelope = abs(bulles(:,:,i));
+    img_log = log_compressed(img_envelope);
+    imagesc(x_axis(ROI_x),z_axis(ROI_z),img_log,[-30 0]);
+    colormap("gray");axis equal;axis tight
+    title("Bag "+bag_idx+" Frame "+i)
+    pause(0.01);
+end
 %% Load and localize data     
 fprintf('--- ULM PROCESSING --- \n\n')
 clear Track_tot Track_tot_interp ProcessingTime bulles IQ dB
@@ -80,12 +88,13 @@ t1=tic;
 for iqIdx = 1:IQnum
     fprintf('Processing bloc %d/%d\n',iqIdx,IQnum);
     tmp = load(IQdataList{iqIdx});
-    bfiq = tmp.bfiq;
-    bfiq = imresize(bfiq,[244,244]);
+    bfiq = tmp.IQ;
+    bfiq = bfiq(ROI_z,ROI_x,:);
+%     bfiq = imresize(bfiq,[244,244]);
     IQ_filt = SVDfilter(bfiq,ULM.SVD_cutoff);
     IQ_filt = filter(but_b,but_a,IQ_filt,[],3);
     IQ_filt(~isfinite(IQ_filt))=0;
-    [~,~] = PALA_multiULM(IQ_filt,listAlgo,ULM,PData,'savingfilename',[dataFolder filesep 'Tracks' num2str(iqIdx,'%.3d') '.mat']);
+    [~,~] = PALA_multiULM(IQ_filt,listAlgo,ULM,PData,'savingfilename',[resultFolder filesep 'Tracks' num2str(iqIdx,'%.3d') '.mat']);
 %     [Track_raw,Track_interp,ProTime] = PALA_multiULM(IQ_filt,listAlgo,ULM,PData);
 %     save([dataFolder filesep 'Tracks' num2str(iqIdx,'%.3d') '.mat'],'Track_raw','Track_interp','ProTime','ULM','UF','PData','-v6')
 end
@@ -107,8 +116,8 @@ ULM.SRsize = round(ULM.size(1:2).*[1 2].*ULM.scale(1:2)/ULM.SRscale);
 ULM.lambda = lambda;
 
 for iqIdx = 1:IQnum % Generate MatOut density matrix
-    iqIdx
-    load([dataFolder filesep 'Tracks' num2str(iqIdx,'%.3d') '.mat'],'Track_raw','Track_interp','ProTime')
+    disp("load "+[resultFolder filesep 'Tracks' num2str(iqIdx,'%.3d') '.mat'])
+    load([resultFolder filesep 'Tracks' num2str(iqIdx,'%.3d') '.mat'],'Track_raw','Track_interp','ProTime')
     aa = -PData(1).Origin([3 1])+[1 1]*1;  % get origin
     bb = [1./PData(1).PDelta([3 1])*ULM.res];  % fix the size of pixel
     aa(3) = 0;bb(3) = 1; % for velocity
@@ -133,23 +142,27 @@ for iqIdx = 1:IQnum % Generate MatOut density matrix
     end
 end
 % clear Track_raw Track_interp Track_count Track_matout MatOut_i
-save([dataFolder filesep 'MatOut_multi'],'MatOut','MatOut_vel','MatOutSat','NbrOfLoc','ULM','listAlgo','Nalgo','PData');
-save([dataFolder filesep 'MatOut_multi_nointerp'],'MatOutNoInterp','MatOutSat','NbrOfLoc','ULM','listAlgo','PData','Nalgo');
+save([resultFolder filesep 'MatOut_multi'],'MatOut','MatOut_vel','MatOutSat','NbrOfLoc','ULM','listAlgo','Nalgo','PData');
+save([resultFolder filesep 'MatOut_multi_nointerp'],'MatOutNoInterp','MatOutSat','NbrOfLoc','ULM','listAlgo','PData','Nalgo');
 
 %% Display MatOut Intensity
-figure;
+
+load([resultFolder filesep 'MatOut_multi'],'MatOut','MatOut_vel','MatOutSat','NbrOfLoc','ULM','listAlgo','Nalgo','PData');
+load([resultFolder filesep 'MatOut_multi_nointerp'],'MatOutNoInterp','MatOutSat','NbrOfLoc','ULM','listAlgo','PData','Nalgo');
+
+figure;clf,set(gcf,'Position',[652 393 941 585]);
 % imagesc(log_compressed(MatOut{1}),[-72 0]); colormap hot% ialgo-th ULM result
 wv = 1540/15*1e-3*1e-3;
-imagesc(MatOut_vel{2}.*wv);colormap jet  % ialgo-th ULM result   
+imagesc(x_axis(ROI_x),z_axis(ROI_z),MatOut_vel{1}.*wv);colormap jet  % ialgo-th ULM result   
 title("mean velocity[mm/s]")
+axis equal;axis tight;colorbar
 %% MatOut intensity rendering, with compression factor
-algo_idx = 2;
-
+algo_idx = 1;
 
 fprintf('--- GENERATING IMAGE RENDERINGS --- \n\n')
 figure;clf,set(gcf,'Position',[652 393 941 585]);
-IntPower = 1/3;SigmaGauss=0;
-im=imagesc(MatOut{algo_idx}.^IntPower);axis image
+IntPower = 1/2;SigmaGauss=0;
+im=imagesc(x_axis(ROI_x)*1000,z_axis(ROI_z)*1000,MatOut{algo_idx}.^IntPower);axis image
 if SigmaGauss>0,im.CData = imgaussfilt(im.CData,SigmaGauss);end
 
 title('ULM intensity display')
@@ -157,12 +170,8 @@ colormap(gca,hot(128))
 clbar = colorbar;caxis(caxis*.8)  % add saturation in image
 clbar.Label.String = 'number of counts';
 clbar.TickLabels = round(clbar.Ticks.^(1/IntPower),1);
-xlabel('\lambda');ylabel('\lambda')
-ca = gca;
-ca.Position = [.05 .05 .8 .9];
-BarWidth = round(1./(ULM.SRscale*lambda)); % 1 mm
-im.CData(size(MatOut{algo_idx},1)-50+[0:3],60+[0:BarWidth])=max(caxis);
-
-
-%%
-figure;imshow(imresize(MatOut{2}.^(1/3.5),[1024 1024]),[]);colormap hot
+xlabel('mm');ylabel('mm');axis equal;axis tight;
+% ca = gca;
+% ca.Position = [.05 .05 .8 .9];
+% BarWidth = round(1./(ULM.SRscale*lambda)); % 1 mm
+% im.CData(size(MatOut{algo_idx},1)-50+[0:3],60+[0:BarWidth])=max(caxis);
