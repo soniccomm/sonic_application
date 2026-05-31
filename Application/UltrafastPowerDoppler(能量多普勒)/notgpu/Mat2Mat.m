@@ -1,6 +1,6 @@
 % Functionality:
 % Read beamformed IQ data and assemble it into a matrix with a specified number of frames
-
+cd(fileparts(mfilename('fullpath')));
 clear all
 clc
 close all
@@ -52,6 +52,11 @@ disp("Reading completed...")
 bfiq_com = bfiq_com(:,:,1:framenum);
 
 % Save
-save(fullfile(data_filepath, "bfiq_com.mat"),"bfiq_com","x_axis","z_axis")
-disp("Saving completed...")
+if(exist('x_axis')&&exist('z_axis'))
+    save(fullfile(data_filepath, "bfiq_com.mat"),"bfiq_com","x_axis","z_axis")
+    disp("Saving completed...")
+elseif (exist('xx_grid')&&exist('zz_grid'))
+    save(fullfile(data_filepath, "bfiq_com.mat"),"bfiq_com","xx_grid","zz_grid")
+    disp("Saving completed...")
+end
 
