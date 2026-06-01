@@ -11,7 +11,7 @@
 % -> Convert frequency shift to flow velocity and display
 
 % Can save beamformed IQ data and blood flow velocity maps
-
+cd(fileparts(mfilename('fullpath')));
 clear all
 clc
 close all
