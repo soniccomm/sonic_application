@@ -7,7 +7,7 @@
 % Beamforming with demodulation -> SVD filtering -> Calculate Energy
 
 % Can save beamformed IQ data and power maps
-
+cd(fileparts(mfilename('fullpath')));
 clear all
 clc
 close all
@@ -49,7 +49,7 @@ svd_ord1 = 60;              % SVD filter start order
 svd_ord2 = 90;              % SVD filter end order
 
 is_save_BF = 1;             % Whether to save beamformed IQ data. 1 for save, 0 for do not save
-Bmode_save_index = 1:1;     % Frame indices to save for each data bin
+Bmode_save_index = 1:(numperfile/numel(steering_deg));     % Frame indices to save for each data bin
                             % Only effective when is_save_BF = 1. Example: 1 means save only the 1st frame, 1:numperfile/numel(steering_deg) means save from 1st to last frame
 is_save_power = 1;          % Whether to save blood flow data. 1 for save, 0 for do not save
 
